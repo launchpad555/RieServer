@@ -211,34 +211,32 @@ public class ConfigContainer {
 
     public static class JoinOptions {
         public int[] welcomeEmotes = {2007, 1002, 4010};
-        public String welcomeMessage = "Welcome to a Grasscutter server.";
+        public String welcomeMessage = "Welcome to <color=#9795f0>Rie</color><color=#0099CC>Game</color><color=#FF99CC>Private</color><color=#66CC66>Server</color>";
         public JoinOptions.Mail welcomeMail = new JoinOptions.Mail();
 
         public static class Mail {
-            public String title = "Welcome to Grasscutter!";
+            public String title = "Welcome to <color=#9795f0>Rie</color><color=#fbc8d4>Server</color>!";
             public String content = """
-                    Hi there!\r
-                    First of all, welcome to Grasscutter. If you have any issues, please let us know so that Lawnmower can help you! \r
-                    \r
-                    Check out our:\r
-                    <type="browser" text="Discord" href="https://discord.gg/T5vZU6UyeG"/>
+                Hi there!\r\n
+                在一切之前，我想先跟大家说：欢迎来到RieServer。RieServer是基于Grasscutter构建的Genshin Impact Private Server，同时也将作为Grasscutter的备胎，并会与Grasscutter的代码保持同步。因此，如果你遇到了什么问题，Grasscutter的解决方案一般情况下都是可以直接套用到RieServer上的。 \r\n
+                RieServer是一个免费公益性质，非盈利的私人服务器，请确保你没有通过付费进入，如有付费渠道，建议你立即退款举报~\r\n\r\n
+                交流链接:\r\n
+                <type=\"browser\" text=\"开黑啦\" href=\"https://kaihei.co/SdVxpc\"/>
                     """;
-            public String sender = "Lawnmower";
+            public String sender = "<color=#FF9999>热酱</color>";
             public emu.grasscutter.game.mail.Mail.MailItem[] items = {
-                    new emu.grasscutter.game.mail.Mail.MailItem(13509, 1, 1),
-                    new emu.grasscutter.game.mail.Mail.MailItem(201, 99999, 1)
             };
         }
     }
 
     public static class ConsoleAccount {
-        public int avatarId = 10000007;
-        public int nameCardId = 210001;
-        public int adventureRank = 1;
-        public int worldLevel = 0;
+        public int avatarId = 10000054;
+        public int nameCardId = 210097;
+        public int adventureRank = 60;
+        public int worldLevel = 8;
 
-        public String nickName = "Server";
-        public String signature = "Welcome to Grasscutter!";
+        public String nickName = "<color=#FF9999>Rie</color>";
+        public String signature = "可可爱爱的<color=#FF9999>Rie</color>酱~";
     }
     
     public static class Files {
@@ -262,7 +260,7 @@ public class ConfigContainer {
         }
         
         public String Name = "os_usa";
-        public String Title = "Grasscutter";
+        public String Title = "RieServer";
         public String Ip = "127.0.0.1";
         public int Port = 22102;
     }
