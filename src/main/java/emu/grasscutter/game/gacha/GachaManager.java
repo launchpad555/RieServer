@@ -50,7 +50,7 @@ public class GachaManager {
 	private final GameServer server;
 	private final Int2ObjectMap<GachaBanner> gachaBanners;
 	private WatchService watchService;
-	
+
 	private static final int starglitterId = 221;
 	private static final int stardustId = 222;
 	private int[] fallbackItems4Pool2Default = {11401, 11402, 11403, 11405, 12401, 12402, 12403, 12405, 13401, 13407, 14401, 14402, 14403, 14409, 15401, 15402, 15403, 15405};
@@ -70,15 +70,15 @@ public class GachaManager {
 	public Int2ObjectMap<GachaBanner> getGachaBanners() {
 		return gachaBanners;
 	}
-	
+
 	public int randomRange(int min, int max) {  // Both are inclusive
 		return ThreadLocalRandom.current().nextInt(max - min + 1) + min;
 	}
-	
+
 	public int getRandom(int[] array) {
 		return array[randomRange(0, array.length - 1)];
 	}
-	
+
 	public synchronized void load() {
 		try (Reader fileReader = new InputStreamReader(DataLoader.load("Banners.json"))) {
 			getGachaBanners().clear();
@@ -87,7 +87,7 @@ public class GachaManager {
 				for (GachaBanner banner : banners) {
 					getGachaBanners().put(banner.getScheduleId(), banner);
 				}
-				Grasscutter.getLogger().info("Banners successfully loaded.");
+				Grasscutter.getLogger().debug("Banners successfully loaded.");
 			} else {
 				Grasscutter.getLogger().error("Unable to load banners. Banners size is 0.");
 			}
@@ -113,7 +113,7 @@ public class GachaManager {
 			fallbackItems5Pool1 = banner.getFallbackItems5Pool1();
 			fallbackItems5Pool2 = banner.getFallbackItems5Pool2();
 
-			if (banner.getAutoStripRateUpFromFallback()) {
+			if (banner.isAutoStripRateUpFromFallback()) {
 				fallbackItems4Pool1 = Utils.setSubtract(fallbackItems4Pool1, rateUpItems4);
 				fallbackItems4Pool2 = Utils.setSubtract(fallbackItems4Pool2, rateUpItems4);
 				fallbackItems5Pool1 = Utils.setSubtract(fallbackItems5Pool1, rateUpItems5);
@@ -256,18 +256,19 @@ public class GachaManager {
 				yield getRandom(banner.getFallbackItems3());
 		};
 	}
-	
+
 	public synchronized void doPulls(Player player, int scheduleId, int times) {
 		// Sanity check
 		if (times != 10 && times != 1) {
+			player.sendPacket(new PacketDoGachaRsp(Retcode.RET_GACHA_INVALID_TIMES));
 			return;
-		} 
+		}
 		Inventory inventory = player.getInventory();
 		if (inventory.getInventoryTab(ItemType.ITEM_WEAPON).getSize() + times > inventory.getInventoryTab(ItemType.ITEM_WEAPON).getMaxCapacity()) {
 			player.sendPacket(new PacketDoGachaRsp(Retcode.RET_ITEM_EXCEED_LIMIT));
 			return;
 		}
-		
+
 		// Get banner
 		GachaBanner banner = this.getGachaBanners().get(scheduleId);
 		if (banner == null) {
@@ -275,20 +276,28 @@ public class GachaManager {
 			return;
 		}
 
+		// Check against total limit
+		PlayerGachaBannerInfo gachaInfo = player.getGachaInfo().getBannerInfo(banner);
+		int gachaTimesLimit = banner.getGachaTimesLimit();
+		if (gachaTimesLimit != Integer.MAX_VALUE && (gachaInfo.getTotalPulls() + times) > gachaTimesLimit) {
+			player.sendPacket(new PacketDoGachaRsp(Retcode.RET_GACHA_TIMES_LIMIT));
+			return;
+		}
+
 		// Spend currency
 		ItemParamData cost = banner.getCost(times);
 		if (cost.getCount() > 0 && !inventory.payItem(cost)) {
-			player.sendPacket(new PacketDoGachaRsp());
+			player.sendPacket(new PacketDoGachaRsp(Retcode.RET_GACHA_COST_ITEM_NOT_ENOUGH));
 			return;
 		}
-		
+
 		// Add to character
-		PlayerGachaBannerInfo gachaInfo = player.getGachaInfo().getBannerInfo(banner);
+		gachaInfo.addTotalPulls(times);
 		BannerPools pools = new BannerPools(banner);
 		List<GachaItem> list = new ArrayList<>();
 		int stardust = 0, starglitter = 0;
 
-		if (banner.getRemoveC6FromPool()) {  // The ultimate form of pity (non-vanilla)
+		if (banner.isRemoveC6FromPool()) {  // The ultimate form of pity (non-vanilla)
 			pools.rateUpItems4 = removeC6FromPool(pools.rateUpItems4, player);
 			pools.rateUpItems5 = removeC6FromPool(pools.rateUpItems5, player);
 			pools.fallbackItems4Pool1 = removeC6FromPool(pools.fallbackItems4Pool1, player);
@@ -296,7 +305,7 @@ public class GachaManager {
 			pools.fallbackItems5Pool1 = removeC6FromPool(pools.fallbackItems5Pool1, player);
 			pools.fallbackItems5Pool2 = removeC6FromPool(pools.fallbackItems5Pool2, player);
 		}
-		
+
 		for (int i = 0; i < times; i++) {
 			// Roll
 			int itemId = doPull(banner, gachaInfo, pools);
@@ -308,12 +317,12 @@ public class GachaManager {
 			// Write gacha record
 			GachaRecord gachaRecord = new GachaRecord(itemId, player.getUid(), banner.getGachaType());
 			DatabaseHelper.saveGachaRecord(gachaRecord);
-			
+
 			// Create gacha item
 			GachaItem.Builder gachaItem = GachaItem.newBuilder();
 			int addStardust = 0, addStarglitter = 0;
 			boolean isTransferItem = false;
-			
+
 			// Const check
 			int constellation = checkPlayerAvatarConstellationLevel(player, itemId);
 			switch (constellation) {
@@ -331,7 +340,7 @@ public class GachaManager {
 					if (constellation >= 6) {  // C6, give consolation starglitter
 						addStarglitter = (itemData.getRankLevel()==5)? 25 : 5;
 					} else {  // C0-C5, give constellation item
-						if (banner.getRemoveC6FromPool() && constellation == 5) {  // New C6, remove it from the pools so we don't get C7 in a 10pull
+						if (banner.isRemoveC6FromPool() && constellation == 5) {  // New C6, remove it from the pools so we don't get C7 in a 10pull
 							pools.removeFromAllPools(new int[] {itemId});
 						}
 						addStarglitter = (itemData.getRankLevel()==5)? 10 : 2;
@@ -348,10 +357,10 @@ public class GachaManager {
 			GameItem item = new GameItem(itemData);
 			gachaItem.setGachaItem(item.toItemParam());
 			inventory.addItem(item);
-			
+
 			stardust += addStardust;
 			starglitter += addStarglitter;
-			
+
 			if (addStardust > 0) {
 				gachaItem.addTokenItemList(ItemParam.newBuilder().setItemId(stardustId).setCount(addStardust));
 			}
@@ -362,10 +371,10 @@ public class GachaManager {
 				}
 				gachaItem.addTokenItemList(starglitterParam);
 			}
-			
+
 			list.add(gachaItem.build());
 		}
-		
+
 		// Add stardust/starglitter
 		if (stardust > 0) {
 			inventory.addItem(stardustId, stardust);
@@ -376,7 +385,7 @@ public class GachaManager {
 
 		// Packets
 		player.sendPacket(new PacketDoGachaRsp(banner, list, gachaInfo));
-		
+
 		// Battle Pass trigger
 		player.getBattlePassManager().triggerMission(WatcherTriggerType.TRIGGER_GACHA_NUM, 0, times);
 	}
@@ -420,10 +429,10 @@ public class GachaManager {
 			}
 		}
 	}
-	
+
 	private synchronized GetGachaInfoRsp createProto(Player player) {
 		GetGachaInfoRsp.Builder proto = GetGachaInfoRsp.newBuilder().setGachaRandom(12345);
-		
+
 		long currentTime = System.currentTimeMillis() / 1000L;
 
 		for (GachaBanner banner : getGachaBanners().values()) {
@@ -432,7 +441,7 @@ public class GachaManager {
 				proto.addGachaInfoList(banner.toProto(player));
 			}
 		}
-				
+
 		return proto.build();
 	}
 

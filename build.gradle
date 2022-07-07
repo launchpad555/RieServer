@@ -93,6 +93,8 @@ dependencies {
 
     compileOnly 'org.projectlombok:lombok:1.18.24'
     annotationProcessor 'org.projectlombok:lombok:1.18.24'
+	testCompileOnly 'org.projectlombok:lombok:1.18.24'
+	testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
 }
 
 configurations.all {
@@ -251,17 +253,19 @@ task injectGitHash {
     def gitCommitHash = {
         try {
             return 'git rev-parse --verify --short HEAD'.execute().text.trim()
-        } catch (e) {
+        } catch (ignored) {
             return "GIT_NOT_FOUND"
         }
     }
-    new File(projectDir, "src/main/java/emu/grasscutter/BuildConfig.java").text = """
-        package emu.grasscutter;
-        public class BuildConfig {
-                public static final String VERSION = \"${version}\";
-                public static final String GIT_HASH = \"${gitCommitHash()}\";
-        }
-    """
+
+    new File(projectDir, "src/main/java/emu/grasscutter/BuildConfig.java").text =
+        """package emu.grasscutter;
+
+public final class BuildConfig {
+    public static final String VERSION = \"${version}\";
+    public static final String GIT_HASH = \"${gitCommitHash()}\";
+}"""
+
 }
 
 processResources {

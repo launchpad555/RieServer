@@ -147,7 +147,7 @@ public class InventoryManager {
 		int totalExp = relic.getTotalExp();
 		int reqExp = GameData.getRelicExpRequired(relic.getItemData().getRankLevel(), level);
 		int upgrades = 0;
-		List<Integer> oldAppendPropIdList = relic.getAppendPropIdList();
+        List<Integer> oldAppendPropIdList = new ArrayList<>(relic.getAppendPropIdList());
 		
 		while (expGain > 0 && reqExp > 0 && level < relic.getItemData().getMaxLevel()) {
 			// Do calculations
@@ -169,13 +169,7 @@ public class InventoryManager {
 			}
 		}
 		
-		if (upgrades > 0) {
-			oldAppendPropIdList = new ArrayList<>(relic.getAppendPropIdList());
-			while (upgrades > 0) {
-				relic.addAppendProp();
-				upgrades -= 1;
-			}
-		}
+        relic.addAppendProps(upgrades);
 		
 		// Save
 		relic.setLevel(level);
@@ -857,6 +851,11 @@ public class InventoryManager {
 				if (useItem.getItemData().getItemUse().get(0).getUseOp().equals("ITEM_USE_UNLOCK_COMBINE")) {
 					// Unlock.
 					useSuccess = player.getServer().getCombineManger().unlockCombineDiagram(player, useItem);
+				}
+				// Handle cooking recipies.
+				if (useItem.getItemData().getItemUse().get(0).getUseOp().equals("ITEM_USE_UNLOCK_COOK_RECIPE")) {
+					// Unlock.
+					useSuccess = player.getCookingManager().unlockRecipe(useItem);
 				}
 				break;
 			case MATERIAL_FURNITURE_FORMULA:
